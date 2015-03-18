@@ -1,0 +1,5 @@
+This folder contains the MATLAB interface to access the LPFG-LIGNUM code.
+Moreover,  it also contains the set of routines to implement optimization of the
+tree form.
+As of the latter, the routines try to match/fit the target distribution of the model
+to those of DATA, which is to be obtained from elsewhere.
