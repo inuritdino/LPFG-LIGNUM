@@ -36,7 +36,7 @@ ILLUSTRATIVE EXAMPLE:
         'C',[1 1 1 0.02 800],... % constant parameter values input
         'argsConst',{'VERB__1','RNDSEED__2','PERTTUNEN1998__3','VSA__4','GSA__5'},... % description of the constants
         'scat','bra','order',1,addArg{:});% target scatter type, its order
-    MODEL = @(x)model_base(x,{''});% shortcut for the model-generator with empty additional args
+    MODEL = @(x)MODEL_BASE(x,{''});% shortcut for the model-generator with empty additional args
     
 When we save the result later on, we will need the model_base function.
 
