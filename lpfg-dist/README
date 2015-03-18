@@ -1,0 +1,3 @@
+This folder contains the actual LPFG-LIGNUM code to run directly in the LPFG simulator.
+The LPFG simulator is available under L-studio (Win) or VLab (Mac/Unix) simulation environment.
+See <http://algorithmicbotany.org/virtual_laboratory/> for the software documentation, download, and updates.
