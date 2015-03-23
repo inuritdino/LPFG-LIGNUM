@@ -10,7 +10,7 @@ One main difference from the model present in the aforementioned papers is that 
 uses so called shadow propagation model for radiation conditions (see Palubicki et al, Self-organizing
 tree models for image synthesis, ACM Transactions on Graphics 28(3), 58:1-10, 2009).
 For this, the voxel space is created and then the radition conditions for each segment are calculated
-by means of shadow propagating down the voxel layers from the shading segment.
+by means of the shadow, propagating down the voxel layers from the shading segment.
 
 This folder contains the actual LPFG-LIGNUM code to run directly in the LPFG simulator.
 The LPFG simulator is available under L-studio (Win) or VLab (Mac/Unix) simulation environment.
