@@ -15,9 +15,10 @@ model the distribution function of the same sort as the DATA. Then OPTIM_CALL
 takes care of the comparison between the two.
 
 OPTIM_CALL must be supplied with the comparison function. By default it is
-DT_DISTANCE() written by Marko Järvenpää, which is not shipped with this code.
-Otherwise, one can use his own function to compare. As soon as the DT_DISTANCE()
-code becomes available publicly, this will be anounced here.
+DT_DISTANCE() written by Marko Järvenpää (marko.jarvenpaa at tut.fi), 
+which is not shipped with this code. Otherwise, one can use his own function
+to compare. As soon as the DT_DISTANCE() code becomes available publicly, 
+this will be anounced here.
 
 OPTIM_LGM_CALL takes the vector of the parameter values and simulate the 
 LPFG-LIGNUM model. It also must take the meta-language description of the
