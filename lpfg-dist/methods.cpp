@@ -1,5 +1,9 @@
 #define TOL (1e-05)
 //Functions' declarations
+float sap_cross_area(std::vector<CylData> &, int);
+int propagate_branch_backward(std::vector<CylData> &,int ,std::vector<int>&, \
+			      std::vector<int> & , bool &);
+int branch_shedding(std::vector<CylData> & , int );
 int shift_branch_offsets(std::vector<CylData> &,int);
 int branch_bending(std::vector<CylData> &,std::vector<int> &);
 int branch_bending_wrapper(std::vector<CylData> & );
@@ -28,6 +32,155 @@ inline V3f rnd_dir(V3f v){
   V3f out(v.x+ran(2.0)-1,v.y+ran(2.0)-1,v.z+ran(2.0)-1);
   return (out.Normalize());
 }
+
+// ****************** SAPWOOD AREA **************************
+float sap_cross_area(std::vector<CylData> & cyls, int c)
+{
+  return (M_PI*(cyls[c].radius*cyls[c].radius-cyls[c].hwR*cyls[c].hwR));
+}
+
+// ****************** BRANCH SHEDDING (BY FOLIAGE) ****************
+int propagate_branch_backward(std::vector<CylData> & cyls,int tip_cyl,	\
+			      std::vector<int>& child_root,		\
+			      std::vector<int>& br_cyls, bool& no_foliage)
+{//Propagate the branch from its tip TIP_CYL to the base=root.
+  //Determine children branches root cyls in CHILD_ROOT.
+  //Determine the cyl's of the branch itself in BR_CYLS.
+  //Stop propagating, whenever(!) a cyl in a branch has some foliage left.
+  //Return NO_FOLIAGE bool.
+  if((cyls[tip_cyl].extension != -1) || (cyls[tip_cyl].children.size() != 0)){
+    //not a tip-cyl return silently
+    return 1;
+  }
+  if(cyls[tip_cyl].is_deleted)
+    return 2;
+
+  //Make zero size for the output vectors
+  child_root.resize(0);
+  br_cyls.resize(0);
+  //Check the current root cyl
+  int cc = tip_cyl;
+  br_cyls.push_back(cc);
+  if(cyls[cc].Wf < FOLTHR)
+    no_foliage = true;
+  else
+    no_foliage = false;
+  while( no_foliage && (cyls[cc].parent > -1) &&\
+	 (cyls[cyls[cc].parent].extension == cc))
+    {//No foliage and CC is an extension of its parent
+      cc = cyls[cc].parent;//Shift to the parent
+      br_cyls.push_back(cc);
+      //Identify the children and form the output array
+      for(int i=0; i<cyls[cc].children.size(); i++){
+	child_root.push_back(cyls[cc].children[i]);
+      }
+      if(cyls[cc].Wf < FOLTHR)
+	no_foliage = true;
+      else
+	no_foliage = false;
+    }
+
+  return 0;
+}
+
+int branch_shedding(std::vector<CylData> & cyls, int nCyl, int & nRemovedShed)
+{//Shed the branches without foliage
+  //Find the tip cyl's(highest order or recently added ones, most probably shoots)
+  std::clock_t startT = clock();
+  bool deleted = true;
+  bool no_foliage;
+  std::vector<int> child_root;
+  std::vector<int> cyls_to_shed;
+  std::vector<bool> protected_cyls (nCyl,false);
+  unsigned int k;//number of tip 1st order cyl's to shed
+  float shed_pois_mu;
+  while(deleted)
+    {//Stop iterations when there were no deleted cyls/branches (deleted == false)
+      deleted = false;
+      for(int i=0; i<nCyl; i++){
+	//do not consider deleted cyl's, protected in current year or dead
+	if(cyls[i].is_deleted || protected_cyls[i] || cyls[i].is_dead)
+	  continue;
+	if(!propagate_branch_backward(cyls,i,child_root,cyls_to_shed,no_foliage)){
+	  //If there are no children and no foliage in the branch cyls_to_shed, delete it
+	  if((child_root.size() == 0) && no_foliage){
+	    if(cyls[i].age >= SHEDYEAR){
+	      //Protected in prev years may come here
+	      if(cyls[i].order == 1){
+		//First-order branches special dealing
+		//1. Generate random number of cyls to shed starting from the tip
+		//Uniform distribution OR Poisson with parameterized MEAN.
+		// k is the num of cyl's to shed, starting from tip
+		if(SHEDDIST == 1){//Uniform distribution
+		  k = (unsigned int)ceil( ran((float) cyls_to_shed.size() ) );
+		}
+		else if(SHEDDIST == 2){//Poisson with MEAN = SHEDMU
+		  if((float)SHEDMU > 10.0){
+		    std::cout << "Warning: SHEDMU cannot be larger than 10. Setting to 10." \
+			      << std::endl;
+		    shed_pois_mu = 10.0;
+		  }
+		  else
+		    shed_pois_mu = (float)SHEDMU;
+		  do{
+		    k = ran_poisson(shed_pois_mu);
+		    //std::cout << "k_poiss = " << k << std::endl;
+		  }
+		  while ( k > cyls_to_shed.size() );
+		}
+		else{//Otherwise, shed everything
+		  k = (unsigned int)cyls_to_shed.size();
+		}
+		// std::cout << "Shed " << k << "/" << cyls_to_shed.size() << std::endl;
+		// for(int j = 0; j < cyls_to_shed.size(); j++){
+		//   std::cout << cyls_to_shed[j] << " ";
+		// }
+		// std::cout << std::endl;
+
+		//2. Mark the non-shed cyls as dead and reshape the cyls_to_shed
+		//k = 1;//debugging condition
+		//Mark the non-shed cyls as dead, thus protecting them from shedding ever
+		for(int j = k; j < cyls_to_shed.size(); j++)
+		  cyls[cyls_to_shed[j]].is_dead = true;
+		//Delete the non-shed ones from cyls_to_shed
+		cyls_to_shed.erase(cyls_to_shed.begin()+k,cyls_to_shed.end());
+		
+		//cyls_to_shed.size() MUST be equal to k
+		// std::cout << "#cyls to shed " << cyls_to_shed.size() << std::endl;
+		// for(int j = 0; j < cyls_to_shed.size(); j++){
+		//   std::cout << cyls_to_shed[j] << " ";
+		// }
+		// std::cout << std::endl;
+
+		if(cyls_to_shed.size() != k){
+		  std::cout << "FATAL ERROR: asked " << k << " to shed, but " \
+			    << cyls_to_shed.size() << " will!" << std::endl;
+		}
+	      }
+	      //Shed the cyls
+	      delete_cyls(cyls,cyls_to_shed,nCyl);
+	      nRemovedShed += cyls_to_shed.size();
+	    }
+	    else{
+	      //Make protected if not supposed to be shed
+	      for(int j = 0; j < cyls_to_shed.size(); j++){
+		protected_cyls[cyls_to_shed[j]] = true;
+	      }
+	    }
+	    deleted = true;
+	    break;
+	  }
+	  else{
+	    continue;
+	  }
+	}
+      }
+    }
+  // std::cout << "Shedding time: " << \
+  //   ((double)clock()-(double)startT)/(double)CLOCKS_PER_SEC << " sec." << std::endl;
+  return 0;
+}
+
 //Some technical functions
 bool do_belong_to_array(std::vector<int>&array, int some)
 {

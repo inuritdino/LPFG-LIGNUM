@@ -292,13 +292,12 @@ EndEach:
   //Debugging the pipe model conditions
   //pipe_model_debug(cyls,nCyl,pipe_failed);
 
-
   //Delete cyl's not approved by space and length limitations
   delete_cyls(cyls,cyls_to_remove,nCyl);
   nRemovedSpace += cyls_to_remove.size();
   
   //Branch shedding(no foliage in the branch ==> shed it)
-  branch_shedding();
+  branch_shedding(cyls,nCyl,nRemovedShed);
   
   //Shedding by mass
   //branch_shed_by_mass();
@@ -320,7 +319,7 @@ EndEach:
 
 Cyl(parCyl) < Bud()://Shoots production
 {
-  if(Year == YEARS || fatal_error){//THe last year simulation, do not produce anything
+  if(Year == YEARS || fatal_error){//THe last year simulation
     return;
   }
   if((P-M) <= 0.0){
@@ -356,7 +355,6 @@ Cyl(parCyl) < Bud()://Shoots production
   if(!remove_l)
     lbuds = num_L_buds(parCyl);
 
-  //std::cout << "N. L-buds: " << lbuds << std::endl;
   //Produce the L-buds first
   float rollAng;
   if(lbuds > 0){
@@ -416,8 +414,8 @@ Cyl(parCyl) < Bud()://Shoots production
     nproduce SB Cyl(nCyl-1) Bud() EB;
   }
   if(remove_t){
-    //This is crucial for the pipe model: we do not allow growing buds with delays.
-    produce ;//produce nothing, this also returns from the function
+    //produce ;//produce nothing, this also returns from the function
+    produce Bud;//OR produce just Bud, delayed production
   }
 
   //Then, produce the T-bud
@@ -485,7 +483,7 @@ Cyl(cyl):
       StartGC() G(1.0) EndGC() Label("1.0m");
     //std::cout << "Base diameter: " << d_label << std::endl;
     // //Plot the neghboring pivots as shadowers
-    // nproduce CurrentTexture(2) SetColor(2) MoveTo(0.1,0.0,0.5) SetHead(0.0,1.0,0.0,1.0,0.0,0.0) \
+    // nproduce CurrentTexture(0) SetColor(2) MoveTo(0.1,0.0,0.5) SetHead(0.0,1.0,0.0,1.0,0.0,0.0) \
     //   SetWidth(cyls[0].radius) StartGC() G(height) EndGC();
   }
   if(!(cyls[cyl].is_deleted)){
@@ -686,9 +684,14 @@ int age_increment(const int nCyl)
 
 int num_L_buds(int c)
 {
+  //For debugging
+  //nLbud = 1;
+  
   if(fL[c] < (float)FLBUDS)
     return 0;
   int nLbud;
+  
+#if PERTTUNEN1998 != 0
   if(cyls[c].Wf > 0.06)
     nLbud = 7;
   else if(cyls[c].Wf > 0.03)
@@ -705,9 +708,25 @@ int num_L_buds(int c)
     nLbud = 1;
   else
     nLbud = 0;
-
-  //For debugging
-  //nLbud = 1;
+#else //This includes SIEVANEN2008 conditions
+  if(cyls[c].Wf > 0.0054)
+    nLbud = 7;
+  else if(cyls[c].Wf > 0.0042)
+    nLbud = 6;
+  else if(cyls[c].Wf > 0.003)
+    nLbud = 5;
+  else if(cyls[c].Wf > 0.0023)
+    nLbud = 4;
+  else if(cyls[c].Wf > 0.0017)
+    nLbud = 3;
+  else if(cyls[c].Wf > 0.0013)
+    nLbud = 2;
+  else if(cyls[c].Wf > 0.001)
+    nLbud = 1;
+  else
+    nLbud = 0;
+#endif
+  
   return nLbud;
 }
 
@@ -1015,97 +1034,6 @@ float cyls_ground_proj_area(std::vector<int> & my_cyls)
 }
 
 
-int branch_shedding()
-{//Shed the branches without foliage
-  //Find the tip cyl's(highest order or recently added ones, most probably shoots)
-  bool deleted = true;
-  bool no_foliage;
-  std::vector<int> child_root;
-  std::vector<int> br_cyls;
-  int k;
-  while(deleted)
-    {
-      deleted = false;
-      for(int i=0; i<nCyl; i++){
-	if(cyls[i].is_deleted)//do not consider deleted cyl's
-	  continue;
-	if(!propagate_branch_backward(i,child_root,br_cyls,no_foliage)){
-	  if((child_root.size() == 0) && no_foliage){
-	    // std::cout << "Shed cyls: " << std::endl;
-	    // for(int j = 0; j < br_cyls.size(); j++){
-	    //   std::cout << br_cyls[j] << "-> ";
-	    //   k = br_cyls[j];
-	    //   while(cyls[k].parent > -1){
-	    // 	std::cout << cyls[k].parent << "-> ";
-	    // 	k = cyls[k].parent;
-	    //   }
-	    //   std::cout << std::endl;
-	    // }
-	    // std::cout << std::endl;
-	    delete_cyls(cyls,br_cyls,nCyl);
-	    nRemovedShed += br_cyls.size();
-	    deleted = true;
-	    break;
-	  }
-	  else{
-	    continue;
-	  }
-	}
-      }
-    }
-
-  return 0;
-}
-
-int propagate_branch_backward(int tip_cyl,std::vector<int>& child_root,
-			      std::vector<int>& br_cyls, bool& no_foliage)
-{//Propagate the branch from its tip to the base=root.
-  //Determine children branches root cyls in CHILD_ROOT.
-  //Determine the cyl's of the branch itself in BR_CYLS.
-  //Stop propagating, whenever(!) a cyl in a branch has some foliage left.
-  //Return NO_FOLIAGE bool.
-
-  if((cyls[tip_cyl].extension != -1) || (cyls[tip_cyl].children.size() != 0)){
-    //not a tip-cyl return silently
-    return 1;
-  }
-  if(cyls[tip_cyl].is_deleted)
-    return 2;
-
-  //Make zero size for the output vectors
-  child_root.resize(0);
-  br_cyls.resize(0);
-  //Check the current root cyl
-  int cc = tip_cyl;
-  br_cyls.push_back(cc);
-  if(cyls[cc].Wf < FOLTHR)
-    no_foliage = true;
-  else
-    no_foliage = false;
-  while( no_foliage && (cyls[cc].parent > -1) &&\
-	 (cyls[cyls[cc].parent].extension == cc))
-    {
-      cc = cyls[cc].parent;
-      br_cyls.push_back(cc);
-      //Identify the children and form the output array
-      for(int i=0; i<cyls[cc].children.size(); i++){
-	child_root.push_back(cyls[cc].children[i]);
-      }
-      if(cyls[cc].Wf < FOLTHR)
-	no_foliage = true;
-      else
-	no_foliage = false;
-    }
-  // if(no_foliage && child_root.size() == 0){
-  //   std::cout << "I will delete cyls:\n";
-  //   for(int i=0; i<br_cyls.size(); i++)
-  //     std::cout << br_cyls[i] << " ";
-  //   std::cout << "\n";
-  //   std::cout << "Foliage: " << !no_foliage << std::endl;
-  // }
-  
-  return 0;
-}
 
 int num_deleted(int nCyl, std::vector<CylData>& cyls)
 {
@@ -1265,6 +1193,9 @@ int pipe_model(std::vector<CylData>&cyls,int nCyl,int nShoot,float A[],\
   std::vector<bool> dead_layer(nCyl-nShoot,false);
   //std::vector<int> shoot_postponed(0);//there must be no shoot_postponed
   std::vector<int> dead_postponed(0);
+  std::vector<int> shoot_postponed(0);
+  //Processed cyl's
+  std::vector<bool> processed_cyl(nCyl-nShoot,false);
 
   //***********************************
   // 1. New SA introduced by the shoots
@@ -1297,6 +1228,10 @@ int pipe_model(std::vector<CylData>&cyls,int nCyl,int nShoot,float A[],\
   std::vector<int> dead_tmp (0);
   for(int i = 0; i < nCyl-nShoot; i++){
     if(shoot_layer[i]){
+      if(!processed_cyl[i])
+	processed_cyl[i] = true;
+      else
+	std::cout << "Warning: already processed cyl" << std::endl;
       //How much needs to be grown in terms of MASS?
       //+final SA = f(Lambda^2)
       A[2] += sa_final[i] * cyls[i].length * RHO;
@@ -1326,6 +1261,10 @@ int pipe_model(std::vector<CylData>&cyls,int nCyl,int nShoot,float A[],\
       }
     }
     if(dead_layer[i]){
+      if(!processed_cyl[i])
+	processed_cyl[i] = true;
+      else
+	std::cout << "Warning: already processed cyl" << std::endl;
       if(cyls[i].age > SSSTART)
     	sa_ss[i] = SS * sap_area(i);
       sa_fol[i] = sap_area_fol(i);
@@ -1360,7 +1299,9 @@ int pipe_model(std::vector<CylData>&cyls,int nCyl,int nShoot,float A[],\
   while(!is_empty_array(shoot_layer) || !is_empty_array(dead_layer)){
     layer++;//layer is equal to age+1 of the cyl's of the layer.
     //memb_in_layer(shoot_layer);
+    //Postpone some layers, if do not match by age/layer number.
     postpone_layer_members(layer,dead_layer,dead_postponed);
+    postpone_layer_members(layer,shoot_layer,shoot_postponed);
     if(!is_same_age(shoot_layer)){
       std::cout << "WARNING: different age for shoot path" << std::endl;
     }
@@ -1373,13 +1314,17 @@ int pipe_model(std::vector<CylData>&cyls,int nCyl,int nShoot,float A[],\
       if(cyls[i].is_deleted)
 	continue;
       if(shoot_layer[i] || dead_layer[i]){
+	if(!processed_cyl[i])
+	  processed_cyl[i] = true;
+	else
+	  std::cout << "***** Warning: already processed cyl!" << std::endl;
 	//Now, sa_final and sa_current are accumulated from the top layer
 	//i.e. sa_final*Lambda^2 - sa_current is the SA_delta. NOTE: sa_final is zero
 	// for the dead-ends.
 	A[2] += sa_final[i] * cyls[i].length * RHO;
 	//Need to grow difference (SA_fol - SA_ss) for the cyl's above
 	sa_current[i] -= sa_fol[i] - sa_ss[i];
-	//Modify SA_fol and SA_ss to pass down the layers
+	//Modify SA_fol and SA_ss to those of the current cyl, pass down the layers
 	if(cyls[i].age > SSSTART)
 	  sa_ss[i] = SS * sap_area(i);
 	sa_fol[i] = sap_area_fol(i);
@@ -1434,6 +1379,10 @@ int pipe_model(std::vector<CylData>&cyls,int nCyl,int nShoot,float A[],\
       dead_layer[dead_postponed[i]] = true;
     }
     dead_postponed.resize(0);
+    for(int i = 0; i < shoot_postponed.size(); i++){
+      shoot_layer[shoot_postponed[i]] = true;
+    }
+    shoot_postponed.resize(0);
   }
 
   return 0;

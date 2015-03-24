@@ -15,6 +15,8 @@ public:
   void setAgeOrder(int A, int O){//Sets age and order info
     age = A;
     order = O;
+    is_deleted = false;
+    is_dead = false;
   }
   void setLength(float L){//Sets radius and all related entities
     length = L;
@@ -58,6 +60,7 @@ public:
   int extension;//extension of the cyl
   std::vector<int> children;//children of the cyl
   bool is_deleted;//is this cyl deleted?
+  bool is_dead;//is dead, i.e. included in the final structure
   float lr;//lr ratio for the cyl
   float af;//af const for the cyl
   float ksi;//ksi const for the cyl

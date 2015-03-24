@@ -89,11 +89,26 @@
 #ifndef LR//radius/length ratio
 #define LR 0.01
 #endif
+#ifndef LRMIN// min LR for Sievanen conditions
+#define LRMIN 0.008
+#endif //linear interpolation between LRMIN and LRMAX for Sievanen 2008 conditions
+#ifndef LRMAX// max LR for Sievanen conditions
+#define LRMAX 0.012
+#endif
 #ifndef INITLEN//length of the first cyl
 #define INITLEN 0.5
 #endif
 #ifndef FOLTHR//no foliage threshold
-#define FOLTHR 1e-05
+#define FOLTHR 1e-08
+#endif
+#ifndef SHEDYEAR//least age of segments in a branch to be shed
+#define SHEDYEAR 0
+#endif
+#ifndef SHEDDIST//the type of dist for shedding: 0-no,1-uniform,2-poisson.
+#define SHEDDIST 0
+#endif
+#ifndef SHEDMU//the mean of Poisson distribution for shedding, <= 10
+#define SHEDMU 2.0
 #endif
 #ifndef BRCRITLR//Branch len to base radius critical ratio
 #define BRCRITLR 50000
