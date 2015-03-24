@@ -14,6 +14,11 @@ MODEL is the function handle that generates be means of some simulation
 model the distribution function of the same sort as the DATA. Then OPTIM_CALL
 takes care of the comparison between the two.
 
+OPTIM_CALL must be supplied with the comparison function. By default it is
+DT_DISTANCE() written by Marko Järvenpää, which is not shipped with this code.
+Otherwise, one can use his own function to compare. As soon as the DT_DISTANCE()
+code becomes available publicly, this will be anounced here.
+
 OPTIM_LGM_CALL takes the vector of the parameter values and simulate the 
 LPFG-LIGNUM model. It also must take the meta-language description of the
 values in the vector. See the function help pages to further elaborate on the
@@ -38,7 +43,7 @@ ILLUSTRATIVE EXAMPLE:
         'scat','bra','order',1,addArg{:});% target scatter type, its order
     MODEL = @(x)MODEL_BASE(x,{''});% shortcut for the model-generator with empty additional args
     
-When we save the result later on, we will need the model_base function.
+When we save the result later on, we will need the MODEL_BASE function.
 
 3. Define ranges of the parameter values
     InitRange = [40 2 3  85 3 3 ;
@@ -52,20 +57,20 @@ When we save the result later on, we will need the model_base function.
     GENS = 50;
     STALL = 5;
 5. Call to the optimization routine
-    [X,Dist,Out] = optim_call(DATA,MODEL,'nvars',DIM,...
+    [X,Dist,Out] = OPTIM_CALL(DATA,MODEL,'nvars',DIM,...
         'opts',{'PlotFcns',{@gaplotbestf,@gaplotdistance},'PopulationSize',POPSIZE,...
         'EliteCount',ELITE,'Generations',GENS,'StallGenLimit',STALL,...
         'PopInitRange',InitRange,'OutputFcns',@optim_lgm_output},...
         'lb',LB,'ub',UB,'intcon',INTCON);
 5a. Call to the optimization routine with gradient based algorithm
     INTCON = 200; % number of random initial points set up in INTCON parameter
-    [X,Dist,Out] = optim_call(DATA,MODEL,'nvars',DIM,'fmincon',...
+    [X,Dist,Out] = OPTIM_CALL(DATA,MODEL,'nvars',DIM,'fmincon',...
         'opts',{},'lb',LB,'ub',UB,'intcon',INTCON);
 6. Save the results (OPTIONAL)
 Run the model with the best solution input and generate the unique output dir name to save to
-    [md,~,fname] = model_base(X,{'outf','visual'});
+    [md,~,fname] = MODEL_BASE(X,{'outf','visual'});
 Read the MTG file to get the tree structure info in MATLAB
-    [tr,ts,br] = read_mtg('lignum.mtg');
+    [tr,ts,br] = READ_MTG('lignum.mtg');
 Might want to comment on the simulation
     fid = fopen('README','w');
     fprintf(fid,'BRAANG_GAUSS+ANGINCR+MAXANG_GAUSS+ZETASD\n');

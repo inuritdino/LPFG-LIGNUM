@@ -38,13 +38,41 @@ function [xVal, FVal, Output, X0] = optim_call(data,model,varargin)
 % 'ub','lb' for the upper and lower bounds, respectively, 'intcon' for the
 % integer constraints,'x0' for the initial point etc. See the main MATLAB
 % documentation.
-
+%
+% OPTIM_CALL(...,'w',WGHT,...) specifies the weight coefficients WGHT for the
+% weighted sum of the distance of multiple DF's. SUM(WGHT) should be 1.0,
+% but no checking on this is performed in the function.
+%
+% OPTIM_CALL(...,'dirs',ND,...) specifies the number of directions for the
+% dt_distance() function. Default is 100.
+%
+% OPTIM_CALL(...,'stat',S,...) specifies the statistic type. S is a numeric
+% value, for possible choices see dt_distance() description. Default is 1
+% (Kolmogorov-Smirnov).
 %% Preliminaries
 if(isempty(varargin))% Workaround to have varargin non-empty for strcmp
     varargin = {''};
 end
 % Set up the problem struct
 problem = struct;
+% Weight values for multiple DF's
+wght = [];
+tf = strcmp('w',varargin);
+if(find(tf))
+    wght = varargin{find(tf)+1};
+end
+% Number of directions for the dt_distance()
+dirs = 100;
+tf = strcmp('dirs',varargin);
+if(find(tf))
+    dirs = varargin{find(tf)+1};
+end
+% Statistic to compute for 1D comparisons within dt_distance()
+stat = 1;
+tf = strcmp('stat',varargin);
+if(find(tf))
+    stat = varargin{find(tf)+1};
+end
 %% Set up the solvers.
 % GA id=1, default solver
 solver = 1;
@@ -148,7 +176,7 @@ disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
     function z = fitness(X)
         % Fitness is calculated for being optimized value X.
         if(isempty(fun))
-            z = calc_fitness(X,data,model,solver);
+            z = calc_fitness(X,data,model,solver,wght,dirs,stat);
         else
             z = fun(X,data,model);
         end
@@ -157,7 +185,7 @@ disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
 end
 
 %% Fitness calculation
-function z = calc_fitness(X,data,model,solver)
+function z = calc_fitness(X,data,model,solver,w,ndirs,stat1d)
 % Calculate fitness given the data and model function.
 
 % X is an input to the model() function.
@@ -189,23 +217,27 @@ else
 end
 
 % Form the array of weights
-w = repmat(1/N,1,N);% equal weights by default
+if(isempty(w))
+    w = repmat(1/N,1,N);% equal weights by default
+end
 
 % Calculate z-scores for each of the DF's
+z_vals = zeros(1,N);
 for ii = 1:N
     if(solver == 2)% for gradient-based methods, uses smoothing
         if(~isempty(model_data{ii}))
-            z = z + w(ii)*dt_distance(model_data{ii},data{ii},100,1,1);% compare the data with modelled data
+            z = z + w(ii)*dt_distance(model_data{ii},data{ii},ndirs,stat1d,2);% compare the data with modelled data
         else
             z = z + w(ii);% 1.0 max score
         end
     else
         if(~isempty(model_data{ii}))
-            z = z + w(ii)*dt_distance(model_data{ii},data{ii},100,1,0);% compare the data with modelled data
+            z = z + w(ii)*dt_distance(model_data{ii},data{ii},ndirs,stat1d,0);% compare the data with modelled data
         else
             z = z + w(ii);% 1.0 max score
         end
     end
+    z_vals(ii) = z;
 %     figure(10);
 %     subplot(1,N,ii);
 %     if(size(data,1) == 1)
@@ -237,8 +269,9 @@ for ii = 1:N
 %     end
 
 end
+figure(10);stairs(z_vals,'-o','LineWidth',2);title(['Dist = ' num2str(z)]);
 fprintf('************************************\n');
-fprintf('*** Simulation is OK. Z = %g ***\n',z);
+fprintf('*** Simulation is OK. Z = %g \n',z);
 fprintf('************************************\n');
 
 end
