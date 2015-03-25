@@ -35,8 +35,7 @@ for ii = 1:N
     subplot(1,N,ii);
     if(N == 1 && size(data,1) == 1)% Histogram
     elseif(N ~= 1 && size(data{ii},1) == 1)% Histogram
-    elseif(N == 1 && size(data,1) > 1)% Scatter
-    elseif(N ~= 1 && size(data,1) > 1)% Scatter
+    elseif(N == 1 && size(data,1) 
     end
 end
 %     if(size(data,1) == 1)

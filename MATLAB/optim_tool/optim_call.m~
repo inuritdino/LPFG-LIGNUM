@@ -10,13 +10,10 @@ function [xVal, FVal, Output, X0] = optim_call(data,model,varargin)
 % X0 is a vector of the initial points, if the algorithm is gradient-based
 % one.
 %
-% DATA is the data distribution function (DF). size(DATA) = [M N], where M
-% is the number of variates and N is the number of samples. Multiple DF's
-% can be set by putting single DF's into a cell-array.
-%
+% DATA is the data distribution function (DF). Multiple DF's are possible
+% to specify by putting them into a cell-array. E 
 % MODEL is a function that generates the model distribution function to fit
-% to the DATA. Characteristics and dimensions of MODEL are the same as
-% those for DATA.
+% to the DATA.
 %
 % VARARGIN inputs:
 %

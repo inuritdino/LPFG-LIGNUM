@@ -29,7 +29,10 @@ function [scatOut,over,outfname] = optim_lgm_call(X,varargin)
 %
 % 'scat' - name of the target scatter to obtain from the simulation. See
 % READ_SCATTER_DAT(...) for the supported scatters. The default is tapering
-% distribution function.
+% distribution function. Additionally, the multiple scatters can be
+% specified by putting the names into a cell-array. For example,
+% OPTIM_LGM_CALL(...,'scat',{'taper','bra'},...) would produce two
+% scatters: tapering and branching angle distribution functions.
 %
 % 'order' - order of the scatter determined by 'scat'. See
 % READ_SCATTER_DAT(...).
