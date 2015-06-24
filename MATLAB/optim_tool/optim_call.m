@@ -223,19 +223,26 @@ end
 % Form the array of weights
 if(isempty(w))
     w = repmat(1/N,1,N);% equal weights by default
+else% rescale the weights
+    if(numel(w) ~= N)
+        error('Error: weights dimension does not match data.');
+    end
+    w = w(:)./sum(w(:));
 end
 
 % Calculate z-scores for each of the DF's
 z_vals = zeros(1,N);
+fprintf('Num. points: ');
 for ii = 1:N
-    if(solver == 2)% for gradient-based methods, uses smoothing
+    fprintf('%d:%d ',size(model_data{ii},2),size(data{ii},2));
+    if(solver == 2)% for gradient-based methods, uses smoothing (2 to dt_distance)
         if(~isempty(model_data{ii}))
             % compare the data with modelled data
             z = z + w(ii)*dt_distance(model_data{ii},data{ii},ndirs,stat1d,2);
         else
             z = z + w(ii);% 1.0 max score
         end
-    else
+    else% no smoothing here, for GA for example (0 to dt_distance)
         if(~isempty(model_data{ii}))
             % compare the data with modelled data
             z = z + w(ii)*dt_distance(model_data{ii},data{ii},ndirs,stat1d,0);
@@ -245,7 +252,9 @@ for ii = 1:N
     end
     z_vals(ii) = z;
 end
-figure(10);stairs(z_vals,'-o','LineWidth',2);title(['Dist = ' num2str(z)]);
+fprintf('\n');
+figure(10);stairs([0 1:numel(z_vals)],[0.0 z_vals],'-o','LineWidth',2);
+title(['Dist = ' num2str(z)]);
 fprintf('************************************\n');
 fprintf('*** Simulation is OK. Z = %g \n',z);
 fprintf('************************************\n');

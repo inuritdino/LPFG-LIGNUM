@@ -12,7 +12,7 @@ function [scatOut,over,outfname] = optim_lgm_call(X,varargin)
 %
 % X is the vector of input parameter values.
 % 
-% VARARING inputs:
+% VARARGIN inputs:
 %
 % 'outf' - create the unique output filename.
 %
@@ -32,7 +32,8 @@ function [scatOut,over,outfname] = optim_lgm_call(X,varargin)
 % distribution function. Additionally, the multiple scatters can be
 % specified by putting the names into a cell-array. For example,
 % OPTIM_LGM_CALL(...,'scat',{'taper','bra'},...) would produce two
-% scatters: tapering and branching angle distribution functions.
+% scatters: tapering and branching angle distribution functions. Similarly,
+% larger number of scatters can be used.
 %
 % 'order' - order of the scatter determined by 'scat'. See
 % READ_SCATTER_DAT(...).
@@ -43,9 +44,9 @@ visual = 0;
 args = {};
 argsConst = {};
 ConstVals = [];
-scat_type = 'taper';% default scatter type is tapering.
+scat_type = {'taper'};% default scatter type is tapering.
 scat_order = 1;
-scatOut = [];
+scatOut = cell(1,length(scat_type));
 over = [];
 
 %% Reading input
@@ -75,6 +76,10 @@ while ( ii <= length(varargin) )
         ii = ii + 1;
     elseif(strcmp('scat',varargin{ii}))
         scat_type = varargin{ii+1};
+        if(isa(scat_type,'char'))% Make the cell array if not
+            scat_type = {scat_type};
+        end
+        scatOut = cell(1,length(scat_type));
         ii = ii + 1;
     end
     ii = ii + 1;
@@ -124,7 +129,8 @@ fclose(fid);
 
 % Return from the function if simulation was not OK
 if(~ok)
-    return;% scatOut is empty by now, use this fact in error checking
+    scatOut = []; % make the output empty to track the error
+    return;
 end
 
 %% Read the overall info
@@ -133,15 +139,16 @@ over = read_info_dat('info.dat');
 %% Generate scatter from the output file
 [scatter,scat_names] = read_scatter_dat('scatter.dat');
 
-if(isa(scat_type,'char'))% Make the cell array if not
-    scat_type = {scat_type};
-end
-
-scatOut = cell(1,length(scat_type));
+% if(isa(scat_type,'char'))% Make the cell array if not
+%     scat_type = {scat_type};
+% end
+% 
+% scatOut = cell(1,length(scat_type));
 for ii = 1:length(scat_type)
     idx = strcmp(scat_type{ii},scat_names);
-    if(isempty(idx))
-        error('Error: the scatter name ** %s ** does not exist.',scat_type{ii});
+    if(all(~idx))
+        %error('Error: the scatter name ** %s ** does not exist.',scat_type{ii});
+        scatOut{ii} = [];
     else
         scatOut{ii} = (scatter{idx}{scat_order})';
     end

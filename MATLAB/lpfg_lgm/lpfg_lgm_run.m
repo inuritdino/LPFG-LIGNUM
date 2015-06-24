@@ -18,10 +18,6 @@ function out = lpfg_lgm_run(visual,outfl,varargin)
 % #define statements to the 'user.h' file, which is read by the
 % LPFG-LIGNUM. This will overwrite the default parameter values.
 
-if(nargin < 1)
-    visual = false;
-end
-
 % Write the input parameters to the model from varargin
 lpfg_set_par('user.h',varargin{:});
 
